@@ -4,28 +4,409 @@ const baseCases = [
 ];
 baseCases.push({ ...baseCases[0], id: 3, title: "The Vanishing Research Drive", brief: "Flash drive riset hilang dari ruang media pada pukul 16:00–17:00. Enam orang meninggalkan jejak yang harus dirangkai.", level: 3, points: 22, characters: [...baseCases[0].characters, { name: "Fajar", role: "Fotografer", avatar: "🧑‍📸", base: "Aku memotret acara di aula sampai pukul 17:00.", questions: [["Ada foto yang bisa dicek?", "Metadata kameraku menunjukkan waktu dan lokasi."], ["Melihat Bella?", "Aku melihatnya membawa tas merah menuju perpustakaan."]] }] });
 baseCases.push({ ...baseCases[1], id: 4, title: "The Scholarship Envelope", brief: "Amplop beasiswa kelas menghilang sebelum rapat sore. Enam kesaksian berisi fakta, asumsi, dan satu kebohongan.", level: 4, points: 24, characters: [...baseCases[1].characters, { name: "Fani", role: "Pengurus acara", avatar: "👩‍🔬", base: "Aku menyiapkan kursi di aula, tidak pernah menyentuh laci kelas.", questions: [["Kapan kamu di aula?", "Dari 09:50 sampai 10:30, ada daftar tugas."], ["Apakah melihat Bima?", "Aku hanya melihat map biru di meja." ]] }] });
-const state = { case: null, level: 1, points: 0, score: 0, combo: 0, bestCombo: 0, evidence: [], discoveries: [], boardSelected: [], deductions: 0, startedAt: 0, timer: 240, timerId: null, selectedSuspect: "", hints: 0, interviews: 0, solvedCases: 0, difficulty: 1 };
-const ui = { start: document.getElementById("startScreen"), game: document.getElementById("gameScreen"), caseNumber: document.getElementById("caseNumber"), caseTitle: document.getElementById("caseTitle"), caseBrief: document.getElementById("caseBrief"), level: document.getElementById("levelValue"), timer: document.getElementById("timerValue"), rating: document.getElementById("ratingValue"), points: document.getElementById("pointsValue"), score: document.getElementById("scoreValue"), combo: document.getElementById("comboValue"), evidence: document.getElementById("evidenceValue"), evidenceTotal: document.getElementById("evidenceTotal"), evidenceBar: document.getElementById("evidenceBar"), daily: document.getElementById("dailyStatus"), toolEyebrow: document.getElementById("toolEyebrow"), toolTitle: document.getElementById("toolTitle"), toolCount: document.getElementById("toolCount"), content: document.getElementById("toolContent"), boardCards: document.getElementById("boardCards"), boardMessage: document.getElementById("boardMessage"), boardChain: document.getElementById("boardChain"), deduction: document.getElementById("deductionValue"), comboDisplay: document.getElementById("investigationCombo"), interviewModal: document.getElementById("interviewModal"), accuseModal: document.getElementById("accuseModal"), reportModal: document.getElementById("reportModal") };
-function money(value) { return new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 0 }).format(value).replace("IDR", "Rp"); }
-function randomCase() { return baseCases[Math.floor(Math.random() * baseCases.length)]; }
-function startGame() { clearInterval(state.timerId); state.case = randomCase(); state.level = state.case.level; state.points = state.case.points; state.score = 0; state.combo = 0; state.bestCombo = 0; state.evidence = []; state.discoveries = []; state.boardSelected = []; state.deductions = 0; state.hints = 0; state.interviews = 0; state.startedAt = Date.now(); state.timer = 240; state.selectedSuspect = ""; ui.start.hidden = true; ui.game.hidden = false; ui.caseNumber.textContent = `CASE #0${state.case.id}`; ui.caseTitle.textContent = state.case.title; ui.caseBrief.textContent = state.case.brief; ui.level.textContent = `${state.level} / 4`; ui.evidenceTotal.textContent = state.case.evidence.length; ui.daily.textContent = "IN PROGRESS"; renderHud(); renderTool("evidence"); renderBoard(); state.timerId = setInterval(tick, 1000); }
-function tick() { state.timer -= 1; const minute = Math.floor(state.timer / 60); const seconds = String(state.timer % 60).padStart(2, "0"); ui.timer.textContent = `${String(minute).padStart(2, "0")}:${seconds}`; if (state.timer <= 0) { clearInterval(state.timerId); state.points = 0; ui.timer.textContent = "00:00"; } }
-function renderHud() { ui.points.textContent = state.points; ui.score.textContent = state.score; ui.combo.textContent = `combo x${state.combo}`; ui.evidence.textContent = state.evidence.length; ui.evidenceBar.style.width = `${state.evidence.length / state.case.evidence.length * 100}%`; ui.toolCount.textContent = `${state.evidence.length} found`; ui.deduction.textContent = `+${state.deductions}`; ui.comboDisplay.textContent = `x${state.combo}`; }
-function renderTool(tool) { document.querySelectorAll(".tool-btn").forEach((button) => button.classList.toggle("active", button.dataset.tool === tool)); const config = { evidence: ["EVIDENCE CABINET", "Inspect the evidence"], interview: ["INTERVIEW ROOM", "Choose a witness"], location: ["LOCATION CHECK", "Where was everyone?"], timeline: ["CASE TIMELINE", "Put the facts in order"], messages: ["MESSAGE ARCHIVE", "Read the private logs"] }; [ui.toolEyebrow.textContent, ui.toolTitle.textContent] = config[tool]; if (tool === "evidence") renderEvidence(); if (tool === "interview") renderInterviewList(); if (tool === "location") renderLocations(); if (tool === "timeline") renderTimeline(); if (tool === "messages") renderMessages(); }
-function spend(points) { if (state.points < points) { ui.boardMessage.textContent = "Investigation points tidak cukup. Pilih petunjuk yang paling penting."; return false; } state.points -= points; renderHud(); return true; }
-function renderEvidence() { ui.content.innerHTML = `<div class="evidence-grid">${state.case.evidence.map((item, index) => `<article class="evidence-card ${state.evidence.includes(index) ? "found" : ""}" data-index="${index}"><span class="evidence-icon">${item.icon}</span><h3>${item.title}</h3><p>${state.evidence.includes(index) ? item.text : "Klik untuk inspect evidence."}</p><small>${item.tag}</small></article>`).join("")}</div>`; ui.content.querySelectorAll(".evidence-card").forEach((card) => card.addEventListener("click", () => inspectEvidence(Number(card.dataset.index)))); }
-function inspectEvidence(index) { if (state.evidence.includes(index)) return; if (!spend(1)) return; state.evidence.push(index); state.score += 10; state.combo += 1; state.bestCombo = Math.max(state.bestCombo, state.combo); renderHud(); renderEvidence(); renderBoard(); }
-function renderInterviewList() { ui.content.innerHTML = `<div class="interview-grid">${state.case.characters.map((person, index) => `<button class="person-card" data-index="${index}" type="button"><span>${person.avatar}</span><div><b>${person.name}</b><small>${person.role}</small></div></button>`).join("")}</div>`; ui.content.querySelectorAll(".person-card").forEach((card) => card.addEventListener("click", () => openInterview(Number(card.dataset.index)))); }
-function openInterview(index) { if (!spend(2)) return; const person = state.case.characters[index]; state.interviews += 1; document.getElementById("interviewAvatar").textContent = person.avatar; document.getElementById("interviewName").textContent = person.name; document.getElementById("interviewRole").textContent = person.role; document.getElementById("conversation").innerHTML = `<p><b>Detective:</b> Ceritakan apa yang kamu ingat.</p><p><b>${person.name}:</b> “${person.base}”</p>`; document.getElementById("questionList").innerHTML = person.questions.map((question, index) => `<button class="question-btn" data-index="${index}" type="button">${question[0]}</button>`).join(""); document.getElementById("questionList").querySelectorAll("button").forEach((button) => button.addEventListener("click", () => askQuestion(person, Number(button.dataset.index)))); ui.interviewModal.hidden = false; }
-function askQuestion(person, index) { const question = person.questions[index]; if (state.points < 0) return; document.getElementById("conversation").innerHTML += `<p><b>Detective:</b> ${question[0]}</p><p><b>${person.name}:</b> “${question[1]}”</p>`; state.score += 7; state.combo += 1; state.bestCombo = Math.max(state.bestCombo, state.combo); renderHud(); }
-function renderLocations() { if (!spend(2)) return; ui.content.innerHTML = `<div class="location-table">${state.case.locations.map((item) => `<div class="location-row"><time>${item.time}</time><span>${item.text}</span></div>`).join("")}</div>`; state.score += 12; renderHud(); }
-function renderTimeline() { if (!spend(2)) return; ui.content.innerHTML = `<div class="timeline-list">${state.case.timeline.map((item) => `<div class="timeline-item"><time>${item.time}</time><span>${item.text}</span></div>`).join("")}</div>`; state.score += 12; renderHud(); }
-function renderMessages() { if (!spend(1)) return; ui.content.innerHTML = `<div class="message-list">${state.case.messages.map((item) => `<div class="message-item"><span>${item.avatar}</span><div><strong>${item.name}</strong><small>${item.text}</small></div></div>`).join("")}</div>`; state.score += 10; renderHud(); }
-function renderBoard() { const names = state.case.characters.map((person) => person.name); const cards = [...names, ...state.case.evidence.slice(0, 4).map((item) => item.title), "14:32", "Kantin", "Perpustakaan"]; ui.boardCards.innerHTML = cards.map((card, index) => `<button class="board-card ${state.boardSelected.includes(index) ? "selected" : ""}" data-index="${index}" type="button">${card}</button>`).join(""); ui.boardCards.querySelectorAll("button").forEach((button) => button.addEventListener("click", () => selectBoardCard(Number(button.dataset.index), cards))); }
-function selectBoardCard(index, cards) { if (state.boardSelected.includes(index)) return; state.boardSelected.push(index); if (state.boardSelected.length > 2) state.boardSelected.shift(); renderBoard(); if (state.boardSelected.length === 2) { const selected = state.boardSelected.map((item) => cards[item]); const valid = selected.includes(state.case.liar) && (selected.includes("Pesan Bella") || selected.includes("CCTV Lorong") || selected.includes("14:32") || selected.includes("10:15")); if (valid) { state.deductions += 20; state.score += 25; state.combo += 1; state.bestCombo = Math.max(state.bestCombo, state.combo); ui.boardMessage.className = "board-message good"; ui.boardMessage.textContent = "✓ Hubungan kuat! Kontradiksi mulai terlihat."; ui.boardChain.textContent = `${selected[0]} → ${selected[1]} → inconsistency`; } else { ui.boardMessage.className = "board-message"; ui.boardMessage.textContent = "Belum cukup kuat. Cari hubungan waktu dan bukti yang lebih spesifik."; } renderHud(); } }
-function openAccuse() { const select = document.getElementById("reasonSelect"); document.getElementById("suspectList").innerHTML = state.case.characters.map((person) => `<button class="suspect-btn" data-name="${person.name}" type="button"><span>${person.avatar}</span><b>${person.name}</b></button>`).join(""); select.innerHTML = `<option value="">Pilih bukti pendukung...</option>${state.case.evidence.filter((item) => state.evidence.includes(state.case.evidence.indexOf(item))).map((item) => `<option value="${item.title}">${item.title}</option>`).join("")}`; document.querySelectorAll(".suspect-btn").forEach((button) => button.addEventListener("click", () => { state.selectedSuspect = button.dataset.name; document.querySelectorAll(".suspect-btn").forEach((item) => item.classList.toggle("selected", item === button)); })); ui.accuseModal.hidden = false; }
-function submitAccusation() { const reason = document.getElementById("reasonSelect").value; if (!state.selectedSuspect || !reason) return; ui.accuseModal.hidden = true; const correct = state.selectedSuspect === state.case.liar; if (correct) { state.score += 100 + state.evidence.length * 8 + state.deductions; if (state.combo > 0) state.score += state.combo * 10; showReport(true); } else { state.score = Math.max(0, state.score - 25); state.combo = 0; showReport(false); } }
-function showReport(correct) { const seconds = Math.max(1, Math.floor((Date.now() - state.startedAt) / 1000)); const rating = correct ? state.evidence.length >= 5 && state.hints === 0 ? "S" : state.evidence.length >= 3 ? "A" : "B" : "D"; document.getElementById("reportIcon").textContent = correct ? "🧠✨" : "🕵️‍♂️"; document.getElementById("reportEyebrow").textContent = correct ? "CASE SOLVED!" : "WRONG SUSPECT"; document.getElementById("reportTitle").textContent = correct ? "The lie is exposed." : "The case remains open."; document.getElementById("reportText").textContent = correct ? `Kamu menemukan bahwa ${state.case.liar} memberikan cerita yang tidak konsisten. ${state.case.solution}` : "Kesimpulanmu belum cocok dengan seluruh bukti. Kembali ke papan investigasi dan cari hubungan waktu, lokasi, atau pesan yang terlewat."; document.getElementById("reportTimeline").innerHTML = correct ? `<strong>TRUE CHRONOLOGY</strong><br>${state.case.timeline.map((item) => `${item.time} — ${item.text}`).join("<br>")}` : "Bukti masih menunggu untuk dibaca."; document.getElementById("finalScore").textContent = state.score; document.getElementById("finalEvidence").textContent = `${state.evidence.length}/${state.case.evidence.length}`; document.getElementById("finalRating").textContent = rating; const achievements = []; if (correct && state.evidence.length === state.case.evidence.length) achievements.push("🏆 Sharp Eyes"); if (correct && state.hints === 0) achievements.push("🧠 Master Detective"); if (correct && seconds < 90) achievements.push("⚡ Quick Thinker"); if (correct && state.deductions > 0) achievements.push("🔎 Evidence Hunter"); document.getElementById("achievementRow").innerHTML = achievements.map((item) => `<span class="achievement">${item}</span>`).join(""); document.getElementById("nextCaseBtn").textContent = correct ? "Next case" : "Review & retry"; ui.reportModal.hidden = false; }
-function useHint() { if (!spend(4)) return; state.hints += 1; state.score = Math.max(0, state.score - 10); ui.boardMessage.className = "board-message good"; ui.boardMessage.textContent = `💡 Hint: cari bukti yang menghubungkan ${state.case.liar} dengan waktu dan lokasi. Hints used: ${state.hints}`; renderHud(); }
-function closeModal(id) { document.getElementById(id).hidden = true; }
-document.getElementById("startBtn").addEventListener("click", startGame); document.getElementById("newCaseBtn").addEventListener("click", startGame); document.querySelectorAll(".tool-btn").forEach((button) => button.addEventListener("click", () => renderTool(button.dataset.tool))); document.getElementById("hintBtn").addEventListener("click", useHint); document.getElementById("accuseBtn").addEventListener("click", openAccuse); document.getElementById("submitAccusation").addEventListener("click", submitAccusation); document.querySelectorAll("[data-close]").forEach((button) => button.addEventListener("click", () => closeModal(button.dataset.close))); document.getElementById("nextCaseBtn").addEventListener("click", () => { closeModal("reportModal"); startGame(); });
+// Game state is kept in one place so renderers never need to infer progress from the DOM.
+const state = {
+  case: null,
+  level: 1,
+  points: 0,
+  score: 0,
+  combo: 0,
+  bestCombo: 0,
+  evidence: [],
+  boardSelected: [],
+  deductions: 0,
+  startedAt: 0,
+  timer: 240,
+  timerId: null,
+  selectedSuspect: "",
+  hints: 0,
+  interviews: 0,
+};
+
+const ui = {
+  start: document.getElementById("startScreen"),
+  game: document.getElementById("gameScreen"),
+  caseNumber: document.getElementById("caseNumber"),
+  caseTitle: document.getElementById("caseTitle"),
+  caseBrief: document.getElementById("caseBrief"),
+  level: document.getElementById("levelValue"),
+  timer: document.getElementById("timerValue"),
+  points: document.getElementById("pointsValue"),
+  score: document.getElementById("scoreValue"),
+  combo: document.getElementById("comboValue"),
+  evidence: document.getElementById("evidenceValue"),
+  evidenceTotal: document.getElementById("evidenceTotal"),
+  evidenceBar: document.getElementById("evidenceBar"),
+  daily: document.getElementById("dailyStatus"),
+  toolEyebrow: document.getElementById("toolEyebrow"),
+  toolTitle: document.getElementById("toolTitle"),
+  toolCount: document.getElementById("toolCount"),
+  content: document.getElementById("toolContent"),
+  boardCards: document.getElementById("boardCards"),
+  boardMessage: document.getElementById("boardMessage"),
+  boardChain: document.getElementById("boardChain"),
+  deduction: document.getElementById("deductionValue"),
+  comboDisplay: document.getElementById("investigationCombo"),
+  interviewModal: document.getElementById("interviewModal"),
+  accuseModal: document.getElementById("accuseModal"),
+  reportModal: document.getElementById("reportModal"),
+};
+
+const toolConfig = {
+  evidence: ["EVIDENCE CABINET", "Inspect the evidence"],
+  interview: ["INTERVIEW ROOM", "Choose a witness"],
+  location: ["LOCATION CHECK", "Where was everyone?"],
+  timeline: ["CASE TIMELINE", "Put the facts in order"],
+  messages: ["MESSAGE ARCHIVE", "Read the private logs"],
+};
+
+function money(value) {
+  return new Intl.NumberFormat("id-ID", {
+    style: "currency",
+    currency: "IDR",
+    maximumFractionDigits: 0,
+  }).format(value).replace("IDR", "Rp");
+}
+
+function randomCase() {
+  return baseCases[Math.floor(Math.random() * baseCases.length)];
+}
+
+function startGame() {
+  clearInterval(state.timerId);
+  state.case = randomCase();
+  state.level = state.case.level;
+  state.points = state.case.points;
+  state.score = 0;
+  state.combo = 0;
+  state.bestCombo = 0;
+  state.evidence = [];
+  state.boardSelected = [];
+  state.deductions = 0;
+  state.hints = 0;
+  state.interviews = 0;
+  state.startedAt = Date.now();
+  state.timer = 240;
+  state.selectedSuspect = "";
+
+  ui.start.hidden = true;
+  ui.game.hidden = false;
+  ui.caseNumber.textContent = `CASE #0${state.case.id}`;
+  ui.caseTitle.textContent = state.case.title;
+  ui.caseBrief.textContent = state.case.brief;
+  ui.level.textContent = `${state.level} / 4`;
+  ui.evidenceTotal.textContent = state.case.evidence.length;
+  ui.daily.textContent = "IN PROGRESS";
+
+  renderHud();
+  renderTool("evidence");
+  renderBoard();
+  state.timerId = setInterval(tick, 1000);
+}
+
+function tick() {
+  state.timer -= 1;
+  const minute = Math.floor(state.timer / 60);
+  const seconds = String(state.timer % 60).padStart(2, "0");
+  ui.timer.textContent = `${String(minute).padStart(2, "0")}:${seconds}`;
+
+  if (state.timer <= 0) {
+    clearInterval(state.timerId);
+    state.points = 0;
+    ui.timer.textContent = "00:00";
+  }
+}
+
+function renderHud() {
+  ui.points.textContent = state.points;
+  ui.score.textContent = state.score;
+  ui.combo.textContent = `combo x${state.combo}`;
+  ui.evidence.textContent = state.evidence.length;
+  ui.evidenceBar.style.width = `${state.evidence.length / state.case.evidence.length * 100}%`;
+  ui.toolCount.textContent = `${state.evidence.length} found`;
+  ui.deduction.textContent = `+${state.deductions}`;
+  ui.comboDisplay.textContent = `x${state.combo}`;
+}
+
+function renderTool(tool) {
+  document.querySelectorAll(".tool-btn").forEach((button) => {
+    button.classList.toggle("active", button.dataset.tool === tool);
+  });
+
+  const [eyebrow, title] = toolConfig[tool];
+  ui.toolEyebrow.textContent = eyebrow;
+  ui.toolTitle.textContent = title;
+
+  const renderers = {
+    evidence: renderEvidence,
+    interview: renderInterviewList,
+    location: renderLocations,
+    timeline: renderTimeline,
+    messages: renderMessages,
+  };
+  renderers[tool]();
+}
+function spend(points) {
+  if (state.points < points) {
+    ui.boardMessage.textContent = "Investigation points tidak cukup. Pilih langkah yang paling penting.";
+    return false;
+  }
+
+  state.points -= points;
+  renderHud();
+  return true;
+}
+
+function renderEvidence() {
+  ui.content.innerHTML = `
+    <div class="evidence-grid">
+      ${state.case.evidence.map((item, index) => `
+        <article class="evidence-card ${state.evidence.includes(index) ? "found" : ""}" data-index="${index}">
+          <span class="evidence-icon">${item.icon}</span>
+          <h3>${item.title}</h3>
+          <p>${state.evidence.includes(index) ? item.text : "Klik untuk inspect evidence."}</p>
+          <small>${item.tag}</small>
+        </article>
+      `).join("")}
+    </div>
+  `;
+
+  ui.content.querySelectorAll(".evidence-card").forEach((card) => {
+    card.addEventListener("click", () => inspectEvidence(Number(card.dataset.index)));
+  });
+}
+
+function inspectEvidence(index) {
+  if (state.evidence.includes(index) || !spend(1)) return;
+
+  state.evidence.push(index);
+  state.score += 10;
+  state.combo += 1;
+  state.bestCombo = Math.max(state.bestCombo, state.combo);
+  renderHud();
+  renderEvidence();
+  renderBoard();
+}
+
+function renderInterviewList() {
+  ui.content.innerHTML = `
+    <div class="interview-grid">
+      ${state.case.characters.map((person, index) => `
+        <button class="person-card" data-index="${index}" type="button">
+          <span>${person.avatar}</span>
+          <div><b>${person.name}</b><small>${person.role}</small></div>
+        </button>
+      `).join("")}
+    </div>
+  `;
+
+  ui.content.querySelectorAll(".person-card").forEach((card) => {
+    card.addEventListener("click", () => openInterview(Number(card.dataset.index)));
+  });
+}
+
+function openInterview(index) {
+  if (!spend(2)) return;
+
+  const person = state.case.characters[index];
+  state.interviews += 1;
+  document.getElementById("interviewAvatar").textContent = person.avatar;
+  document.getElementById("interviewName").textContent = person.name;
+  document.getElementById("interviewRole").textContent = person.role;
+  document.getElementById("conversation").innerHTML = `
+    <p><b>Detective:</b> Ceritakan apa yang kamu ingat.</p>
+    <p><b>${person.name}:</b> “${person.base}”</p>
+  `;
+  document.getElementById("questionList").innerHTML = person.questions.map((question, questionIndex) => `
+    <button class="question-btn" data-index="${questionIndex}" type="button">${question[0]}</button>
+  `).join("");
+  document.getElementById("questionList").querySelectorAll("button").forEach((button) => {
+    button.addEventListener("click", () => askQuestion(person, Number(button.dataset.index)));
+  });
+  ui.interviewModal.hidden = false;
+}
+
+function askQuestion(person, index) {
+  const question = person.questions[index];
+  document.getElementById("conversation").innerHTML += `
+    <p><b>Detective:</b> ${question[0]}</p>
+    <p><b>${person.name}:</b> “${question[1]}”</p>
+  `;
+  state.score += 7;
+  state.combo += 1;
+  state.bestCombo = Math.max(state.bestCombo, state.combo);
+  renderHud();
+}
+
+function renderLocations() {
+  if (!spend(2)) return;
+  ui.content.innerHTML = `
+    <div class="location-table">
+      ${state.case.locations.map((item) => `<div class="location-row"><time>${item.time}</time><span>${item.text}</span></div>`).join("")}
+    </div>
+  `;
+  state.score += 12;
+  renderHud();
+}
+
+function renderTimeline() {
+  if (!spend(2)) return;
+  ui.content.innerHTML = `
+    <div class="timeline-list">
+      ${state.case.timeline.map((item) => `<div class="timeline-item"><time>${item.time}</time><span>${item.text}</span></div>`).join("")}
+    </div>
+  `;
+  state.score += 12;
+  renderHud();
+}
+
+function renderMessages() {
+  if (!spend(1)) return;
+  ui.content.innerHTML = `
+    <div class="message-list">
+      ${state.case.messages.map((item) => `<div class="message-item"><span>${item.avatar}</span><div><strong>${item.name}</strong><small>${item.text}</small></div></div>`).join("")}
+    </div>
+  `;
+  state.score += 10;
+  renderHud();
+}
+function getBoardCards() {
+  const characters = state.case.characters.map((person) => person.name);
+  const evidence = state.case.evidence.slice(0, 4).map((item) => item.title);
+  return [...characters, ...evidence, "14:32", "Kantin", "Perpustakaan"];
+}
+
+function renderBoard() {
+  const cards = getBoardCards();
+  ui.boardCards.innerHTML = cards.map((card, index) => `
+    <button class="board-card ${state.boardSelected.includes(index) ? "selected" : ""}" data-index="${index}" type="button">${card}</button>
+  `).join("");
+
+  ui.boardCards.querySelectorAll("button").forEach((button) => {
+    button.addEventListener("click", () => selectBoardCard(Number(button.dataset.index), cards));
+  });
+}
+
+function selectBoardCard(index, cards) {
+  if (state.boardSelected.includes(index)) return;
+  state.boardSelected.push(index);
+  if (state.boardSelected.length > 2) state.boardSelected.shift();
+  renderBoard();
+  if (state.boardSelected.length !== 2) return;
+
+  const selected = state.boardSelected.map((item) => cards[item]);
+  const valid = selected.includes(state.case.liar) && (
+    selected.includes("Pesan Bella") ||
+    selected.includes("CCTV Lorong") ||
+    selected.includes("14:32") ||
+    selected.includes("10:15")
+  );
+
+  if (valid) {
+    state.deductions += 20;
+    state.score += 25;
+    state.combo += 1;
+    state.bestCombo = Math.max(state.bestCombo, state.combo);
+    ui.boardMessage.className = "board-message good";
+    ui.boardMessage.textContent = "✓ Hubungan kuat! Kontradiksi mulai terlihat.";
+    ui.boardChain.textContent = `${selected[0]} → ${selected[1]} → inconsistency`;
+  } else {
+    ui.boardMessage.className = "board-message";
+    ui.boardMessage.textContent = "Belum cukup kuat. Cari hubungan waktu dan bukti yang lebih spesifik.";
+  }
+  renderHud();
+}
+
+function openAccuse() {
+  const select = document.getElementById("reasonSelect");
+  const suspects = document.getElementById("suspectList");
+  const foundEvidence = state.case.evidence.filter((_, index) => state.evidence.includes(index));
+
+  suspects.innerHTML = state.case.characters.map((person) => `
+    <button class="suspect-btn" data-name="${person.name}" type="button">
+      <span>${person.avatar}</span><b>${person.name}</b>
+    </button>
+  `).join("");
+  select.innerHTML = `<option value="">Pilih bukti pendukung...</option>${foundEvidence.map((item) => `<option value="${item.title}">${item.title}</option>`).join("")}`;
+  suspects.querySelectorAll("button").forEach((button) => {
+    button.addEventListener("click", () => {
+      state.selectedSuspect = button.dataset.name;
+      suspects.querySelectorAll("button").forEach((item) => item.classList.toggle("selected", item === button));
+    });
+  });
+  ui.accuseModal.hidden = false;
+}
+
+function submitAccusation() {
+  const reason = document.getElementById("reasonSelect").value;
+  if (!state.selectedSuspect || !reason) return;
+
+  ui.accuseModal.hidden = true;
+  const correct = state.selectedSuspect === state.case.liar;
+  if (correct) {
+    state.score += 100 + state.evidence.length * 8 + state.deductions;
+    if (state.combo > 0) state.score += state.combo * 10;
+  } else {
+    state.score = Math.max(0, state.score - 25);
+    state.combo = 0;
+  }
+  showReport(correct);
+}
+
+function showReport(correct) {
+  const seconds = Math.max(1, Math.floor((Date.now() - state.startedAt) / 1000));
+  const rating = correct
+    ? state.evidence.length >= 5 && state.hints === 0 ? "S" : state.evidence.length >= 3 ? "A" : "B"
+    : "D";
+  const achievements = [];
+
+  if (correct && state.evidence.length === state.case.evidence.length) achievements.push("🏆 Sharp Eyes");
+  if (correct && state.hints === 0) achievements.push("🧠 Master Detective");
+  if (correct && seconds < 90) achievements.push("⚡ Quick Thinker");
+  if (correct && state.deductions > 0) achievements.push("🔎 Evidence Hunter");
+
+  document.getElementById("reportIcon").textContent = correct ? "🧠✨" : "🕵️‍♂️";
+  document.getElementById("reportEyebrow").textContent = correct ? "CASE SOLVED!" : "WRONG SUSPECT";
+  document.getElementById("reportTitle").textContent = correct ? "The lie is exposed." : "The case remains open.";
+  document.getElementById("reportText").textContent = correct
+    ? `Kamu menemukan bahwa ${state.case.liar} memberikan cerita yang tidak konsisten. ${state.case.solution}`
+    : "Kesimpulanmu belum cocok dengan seluruh bukti. Kembali ke papan investigasi dan cari hubungan yang terlewat.";
+  document.getElementById("reportTimeline").innerHTML = correct
+    ? `<strong>TRUE CHRONOLOGY</strong><br>${state.case.timeline.map((item) => `${item.time} — ${item.text}`).join("<br>")}`
+    : "Bukti masih menunggu untuk dibaca.";
+  document.getElementById("finalScore").textContent = state.score;
+  document.getElementById("finalEvidence").textContent = `${state.evidence.length}/${state.case.evidence.length}`;
+  document.getElementById("finalRating").textContent = rating;
+  document.getElementById("achievementRow").innerHTML = achievements.map((item) => `<span class="achievement">${item}</span>`).join("");
+  document.getElementById("nextCaseBtn").textContent = correct ? "Next case" : "Review & retry";
+  ui.reportModal.hidden = false;
+}
+
+function useHint() {
+  if (!spend(4)) return;
+  state.hints += 1;
+  state.score = Math.max(0, state.score - 10);
+  ui.boardMessage.className = "board-message good";
+  ui.boardMessage.textContent = `💡 Hint: cari bukti yang menghubungkan ${state.case.liar} dengan waktu dan lokasi. Hints used: ${state.hints}`;
+  renderHud();
+}
+
+function closeModal(id) {
+  document.getElementById(id).hidden = true;
+}
+
+document.getElementById("startBtn").addEventListener("click", startGame);
+document.getElementById("newCaseBtn").addEventListener("click", startGame);
+document.querySelectorAll(".tool-btn").forEach((button) => {
+  button.addEventListener("click", () => renderTool(button.dataset.tool));
+});
+document.getElementById("hintBtn").addEventListener("click", useHint);
+document.getElementById("accuseBtn").addEventListener("click", openAccuse);
+document.getElementById("submitAccusation").addEventListener("click", submitAccusation);
+document.querySelectorAll("[data-close]").forEach((button) => {
+  button.addEventListener("click", () => closeModal(button.dataset.close));
+});
+document.getElementById("nextCaseBtn").addEventListener("click", () => {
+  closeModal("reportModal");
+  startGame();
+});
