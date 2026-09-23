@@ -1,3 +1,4 @@
-// Case data is prepared as a separate module boundary.
-// New cases should be added here during the next migration step.
+// Case data module - not currently loaded by index.html.
+// All case data is embedded directly in ../script.js via the `baseCases` array.
+// This file is reserved for future modular migration.
 export const caseData = [];

@@ -1,3 +1,3 @@
-// Main entry point during the modular migration.
-// The legacy implementation remains available while features are moved into modules.
-import "../script.js";
+// Main entry point (not used - legacy modular migration stub).
+// index.html loads ../script.js directly. This file is kept for reference only.
+// import "../script.js";

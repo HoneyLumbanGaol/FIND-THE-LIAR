@@ -21,6 +21,7 @@ const state = {
   selectedSuspect: "",
   hints: 0,
   interviews: 0,
+  toolsUsed: [],
 };
 
 const ui = {
@@ -85,6 +86,7 @@ function startGame() {
   state.deductions = 0;
   state.hints = 0;
   state.interviews = 0;
+  state.toolsUsed = [];
   state.startedAt = Date.now();
   state.timer = 240;
   state.selectedSuspect = "";
@@ -239,35 +241,47 @@ function askQuestion(person, index) {
 }
 
 function renderLocations() {
-  if (!spend(2)) return;
+  const alreadyUsed = state.toolsUsed.includes("location");
+  if (!alreadyUsed && !spend(2)) return;
+  if (!alreadyUsed) {
+    state.toolsUsed.push("location");
+    state.score += 12;
+  }
   ui.content.innerHTML = `
     <div class="location-table">
       ${state.case.locations.map((item) => `<div class="location-row"><time>${item.time}</time><span>${item.text}</span></div>`).join("")}
     </div>
   `;
-  state.score += 12;
   renderHud();
 }
 
 function renderTimeline() {
-  if (!spend(2)) return;
+  const alreadyUsed = state.toolsUsed.includes("timeline");
+  if (!alreadyUsed && !spend(2)) return;
+  if (!alreadyUsed) {
+    state.toolsUsed.push("timeline");
+    state.score += 12;
+  }
   ui.content.innerHTML = `
     <div class="timeline-list">
       ${state.case.timeline.map((item) => `<div class="timeline-item"><time>${item.time}</time><span>${item.text}</span></div>`).join("")}
     </div>
   `;
-  state.score += 12;
   renderHud();
 }
 
 function renderMessages() {
-  if (!spend(1)) return;
+  const alreadyUsed = state.toolsUsed.includes("messages");
+  if (!alreadyUsed && !spend(1)) return;
+  if (!alreadyUsed) {
+    state.toolsUsed.push("messages");
+    state.score += 10;
+  }
   ui.content.innerHTML = `
     <div class="message-list">
       ${state.case.messages.map((item) => `<div class="message-item"><span>${item.avatar}</span><div><strong>${item.name}</strong><small>${item.text}</small></div></div>`).join("")}
     </div>
   `;
-  state.score += 10;
   renderHud();
 }
 function getBoardCards() {

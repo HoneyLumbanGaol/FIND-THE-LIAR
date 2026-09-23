@@ -7,7 +7,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet" />
-    <link rel="stylesheet" href="css/style.css" />
+    <link rel="stylesheet" href="style.css" />
   </head>
   <body>
     <div class="noir-grid"></div><div class="spotlight spotlight-a"></div><div class="spotlight spotlight-b"></div>
@@ -27,6 +27,6 @@
     <div id="interviewModal" class="modal" hidden><section class="interview-card"><button class="close-btn" data-close="interviewModal" type="button">×</button><div class="interview-head"><div id="interviewAvatar">👤</div><div><p class="eyebrow">INTERVIEW LOG</p><h2 id="interviewName">Character</h2><span id="interviewRole">Witness</span></div></div><div id="conversation" class="conversation"></div><div id="questionList" class="question-list"></div></section></div>
     <div id="accuseModal" class="modal" hidden><section class="accuse-card"><button class="close-btn" data-close="accuseModal" type="button">×</button><p class="eyebrow">FINAL DEDUCTION</p><h2>Who is lying?</h2><p>Pastikan kamu sudah memeriksa bukti. Pilih tersangka dan jelaskan kontradiksi yang kamu temukan.</p><div id="suspectList" class="suspect-list"></div><label class="reason-label">Alasan utama <select id="reasonSelect"><option value="">Pilih bukti pendukung...</option></select></label><button id="submitAccusation" class="primary-btn" type="button">Submit deduction <span>→</span></button></section></div>
     <div id="reportModal" class="modal" hidden><section class="report-card"><div id="reportIcon" class="report-icon">🧠</div><p class="eyebrow" id="reportEyebrow">CASE REPORT</p><h2 id="reportTitle">Case solved.</h2><p id="reportText"></p><div id="reportTimeline" class="report-timeline"></div><div class="report-stats"><div><span>Detective score</span><strong id="finalScore">0</strong></div><div><span>Evidence found</span><strong id="finalEvidence">0/0</strong></div><div><span>Case rating</span><strong id="finalRating">—</strong></div></div><div id="achievementRow" class="achievement-row"></div><button id="nextCaseBtn" class="primary-btn" type="button">Next case <span>→</span></button></section></div>
-    <script type="module" src="js/game.js"></script>
+    <script src="script.js"></script>
   </body>
 </html>

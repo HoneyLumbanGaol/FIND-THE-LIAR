@@ -1,2 +1,3 @@
-/* Stylesheet entry point for the modular project structure. */
+/* Stylesheet entry point - imports the main stylesheet from root. */
+/* This file is not directly used by index.html (which loads ../style.css). */
 @import url("../style.css");
